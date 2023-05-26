@@ -1,38 +1,40 @@
-
-addpath /home/liuzzil2/fieldtrip-20190812/
-
+ftpath   = '/home/liuzzil2/fieldtrip-20190812/';
+addpath(ftpath)
 ft_defaults
+
+roothpath = '/data/EDB/MEG_AXCPT_Flanker/';
+
 addpath ~/matlab_utils/
 
 gridres = 5;
 mu = 4;
 mri_mni = ft_read_mri('~/MNI152_T1_2009c.nii'); % in mni coordinates
-    mri_mni.coordsys = 'mni';
-    ftpath   = '/home/liuzzil2/fieldtrip-20190812/';
-    load(fullfile(ftpath, ['template/sourcemodel/standard_sourcemodel3d',num2str(gridres),'mm']));
-    sourcemodel.coordsys = 'mni';
+mri_mni.coordsys = 'mni';
 
-subs = {'24531';'24563';'24590';'24580';'24626';'24581';'24482';...
+load(fullfile(ftpath, ['template/sourcemodel/standard_sourcemodel3d',num2str(gridres),'mm']));
+sourcemodel.coordsys = 'mni';
+
+sublist = {'24531';'24563';'24590';'24580';'24626';'24581';'24482';...
     '24640';'24592';'24667';'24678' };
 
 
-Theta_A = zeros(nnz(sourcemodel.inside),length(subs));
-Theta_B = zeros(nnz(sourcemodel.inside),length(subs));
-Theta_AX = zeros(nnz(sourcemodel.inside),length(subs));
-Theta_AY = zeros(nnz(sourcemodel.inside),length(subs));
-Theta_BX = zeros(nnz(sourcemodel.inside),length(subs));
-Theta_BY = zeros(nnz(sourcemodel.inside),length(subs));
+pow_A = zeros(nnz(sourcemodel.inside),length(sublist));
+pow_B = zeros(nnz(sourcemodel.inside),length(sublist));
+pow_AX = zeros(nnz(sourcemodel.inside),length(sublist));
+pow_AY = zeros(nnz(sourcemodel.inside),length(sublist));
+pow_BX = zeros(nnz(sourcemodel.inside),length(sublist));
+pow_BY = zeros(nnz(sourcemodel.inside),length(sublist));
 
 lowf = 4;
 highf = 8;
 %%
 
-for ss = 1:length(subs)
-    sub = subs{ss};
+for ss = 1:length(sublist)
+    sub = sublist{ss};
     if strcmp(sub,'24531')
-        processingfolder = ['/data/EDB/MEG_AXCPT_Flanker/derivatives/sub-',sub,'/ses-02/'];
+        processingfolder = [roothpath,'derivatives/sub-',sub,'/ses-02/'];
     else
-        processingfolder = ['/data/EDB/MEG_AXCPT_Flanker/derivatives/sub-',sub,'/'];
+        processingfolder = [roothpath,'derivatives/sub-',sub,'/'];
     end
     
     d = dir(processingfolder);
@@ -42,12 +44,12 @@ for ss = 1:length(subs)
     df = find(contains(filenames,'task-axcpt_run-'));
     nrec = nnz(df);
     
-    sERF_A = zeros(nnz(sourcemodel.inside),nrec);
-    sERF_B = zeros(nnz(sourcemodel.inside),nrec);
-    sERF_AX = zeros(nnz(sourcemodel.inside),nrec);
-    sERF_AY = zeros(nnz(sourcemodel.inside),nrec);
-    sERF_BX = zeros(nnz(sourcemodel.inside),nrec);
-    sERF_BY = zeros(nnz(sourcemodel.inside),nrec);
+    s_A = zeros(nnz(sourcemodel.inside),nrec);
+    s_B = zeros(nnz(sourcemodel.inside),nrec);
+    s_AX = zeros(nnz(sourcemodel.inside),nrec);
+    s_AY = zeros(nnz(sourcemodel.inside),nrec);
+    s_BX = zeros(nnz(sourcemodel.inside),nrec);
+    s_BY = zeros(nnz(sourcemodel.inside),nrec);
     
     Ntrials = [];
     for ii = 1:nrec
@@ -59,23 +61,23 @@ for ss = 1:length(subs)
             
             load(datafile)
        
-            sERF_A(:,ii) = PcueA;
-            sERF_B(:,ii) = PcueB;
-            sERF_AX(:,ii) = PprobeAX;
-            sERF_AY(:,ii) = PprobeAY;
-            sERF_BX(:,ii) = PprobeBX;
-            sERF_BY(:,ii) = PprobeBY;
+            s_A(:,ii) = PcueA;
+            s_B(:,ii) = PcueB;
+            s_AX(:,ii) = PprobeAX;
+            s_AY(:,ii) = PprobeAY;
+            s_BX(:,ii) = PprobeBX;
+            s_BY(:,ii) = PprobeBY;
 %            
         end
     end
     
-
-    Theta_A(:,ss)  = mean(sERF_A,2);
-    Theta_B(:,ss)  = mean(sERF_B,2);
-    Theta_AX(:,ss) = mean(sERF_AX,2);
-    Theta_AY(:,ss) = mean(sERF_AY,2);
-    Theta_BX(:,ss) = mean(sERF_BX,2);
-    Theta_BY(:,ss) = mean(sERF_BY,2);
+    % average over runs
+    pow_A(:,ss)  = mean(s_A,2);
+    pow_B(:,ss)  = mean(s_B,2);
+    pow_AX(:,ss) = mean(s_AX,2);
+    pow_AY(:,ss) = mean(s_AY,2);
+    pow_BX(:,ss) = mean(s_BX,2);
+    pow_BY(:,ss) = mean(s_BY,2);
     
     
 end   
@@ -83,13 +85,17 @@ end
 
 %% Plot Freq
 
+% condition to plot
+P = mean(pow_AY,2) -  mean(pow_AX,2) ; 
+
+
 crang = [];
 
 mriplot = 'mni';
 plotopt = 'slice';  % 'slice'; %'ortho'
 
 T = zeros(sourcemodel.dim);
-T(sourcemodel.inside) = mean(Theta_AY,2);% -  mean(Theta_AX,2) ; 
+T(sourcemodel.inside) = P;
 sourceant =[];
 sourceant.pow = T;
     

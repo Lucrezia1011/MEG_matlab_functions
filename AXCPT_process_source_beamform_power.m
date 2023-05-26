@@ -1,8 +1,9 @@
-%function AXCPT_process_source_beamform(filenames,datapath,processingfolder,bvfiles,fids_name)
-
-addpath /home/liuzzil2/fieldtrip-20190812/
-
+ftpath   = '/home/liuzzil2/fieldtrip-20190812/';
+addpath(ftpath)
 ft_defaults
+
+roothpath = '/data/EDB/MEG_AXCPT_Flanker/';
+
 addpath ~/matlab_utils/
 
 sublist = {'24531';'24563';'24590';'24580';'24626';'24581';'24482';...
@@ -15,13 +16,13 @@ for ss = 1:length(sublist)
     sub = sublist{ss};
     
     if strcmp(sub,'24531')
-        datapath = ['/data/EDB/MEG_AXCPT_Flanker/data/sub-',sub,'/ses-02/meg/'];
-        processingfolder = ['/data/EDB/MEG_AXCPT_Flanker/derivatives/sub-',sub,'/ses-02/'];
-        mri_name = ['/data/EDB/MEG_AXCPT_Flanker/data/sub-',sub,'/ses-01/anat/sub-',sub,'_acq-mprage_T1w.nii'];
+        datapath = [roothpath,'data/sub-',sub,'/ses-02/meg/'];
+        processingfolder = [roothpath,'derivatives/sub-',sub,'/ses-02/'];
+        mri_name = [roothpath,'/data/sub-',sub,'/ses-01/anat/sub-',sub,'_acq-mprage_T1w.nii'];
     else
-        datapath = ['/data/EDB/MEG_AXCPT_Flanker/data/sub-',sub,'/meg/'];
-        processingfolder = ['/data/EDB/MEG_AXCPT_Flanker/derivatives/sub-',sub,'/'];
-        mri_name = ['/data/EDB/MEG_AXCPT_Flanker/data/sub-',sub,'/anat/sub-',sub,'_acq-mprage_T1w.nii'];
+        datapath = [roothpath,'data/sub-',sub,'/meg/'];
+        processingfolder = [roothpath,'derivatives/sub-',sub,'/'];
+        mri_name = [roothpath,'data/sub-',sub,'/anat/sub-',sub,'_acq-mprage_T1w.nii'];
     end
     
     if ~exist(processingfolder,'dir')
@@ -62,12 +63,12 @@ for ss = 1:length(sublist)
     end
     fclose(fileID);
     
-    d = dir('/data/EDB/MEG_AXCPT_Flanker/data/emptyroom/');
+    d = dir([roothpath,'data/emptyroom/']);
     emptyroom = []; jj = 0;
     for ii = 3:length(d)
         if contains(d(ii).name, TaskDate(1:8))
             jj = jj + 1;
-            emptyroom{jj} = ['/data/EDB/MEG_AXCPT_Flanker/data/emptyroom/',d(ii).name];
+            emptyroom{jj} = [roothpath,'data/emptyroom/',d(ii).name];
         end
     end
     
@@ -94,7 +95,7 @@ for ss = 1:length(sublist)
     channels(find(chanInd)) = [];
     
     noiseC = zeros(length(channels),length(channels),length(emptyroom));
-    noiseCtheta = zeros(length(channels),length(channels),length(emptyroom));
+    noiseCbp = zeros(length(channels),length(channels),length(emptyroom));
     for ii = 1:length(emptyroom)
         
         
@@ -123,11 +124,11 @@ for ss = 1:length(sublist)
         for t = 1:length(data_empty.trial)
             emptyC = cov(data_empty.trial{t}');
         end
-        noiseCtheta(:,:,ii) = mean(emptyC,3);
+        noiseCbp(:,:,ii) = mean(emptyC,3);
         
     end
     
-    noiseCtheta = mean(noiseCtheta,3);
+    noiseCbp = mean(noiseCbp,3);
     noiseC = mean(noiseC,3);
     
     %% Standard pre-processing
@@ -242,7 +243,7 @@ for ss = 1:length(sublist)
         %     mri_mni = ft_read_mri('~/fieldtrip-20190812/external/spm8/templates/T1.nii','dataformat','nifti');
         mri_mni = ft_read_mri('~/MNI152_T1_2009c.nii'); % in mni coordinates
         mri_mni.coordsys = 'mni';
-        ftpath   = '/home/liuzzil2/fieldtrip-20190812/';
+        
         load(fullfile(ftpath, ['template/sourcemodel/standard_sourcemodel3d',num2str(gridres),'mm']));
         sourcemodel.coordsys = 'mni';
         
@@ -300,7 +301,7 @@ for ss = 1:length(sublist)
         
         
         
-        %% Theta power
+        %% Oscillatory power
         
         freq = [lowf highf];
         filt_order = []; % default
@@ -334,12 +335,12 @@ for ss = 1:length(sublist)
         PcueB = cell(size(L));
         for l = 1:length(L)
             w = W{l};
-            PprobeAY{l} = (w'*CAY*w)  / (w'*noiseCtheta*w);
-            PprobeAX{l} = (w'*CAX*w)  / (w'*noiseCtheta*w);
-            PprobeBY{l} = (w'*CBY*w)  / (w'*noiseCtheta*w);
-            PprobeBX{l} = (w'*CBX*w)  / (w'*noiseCtheta*w);
-            PcueA{l} = (w'*CA*w) / (w'*noiseCtheta*w);
-            PcueB{l} = (w'*CB*w) / (w'*noiseCtheta*w);
+            PprobeAY{l} = (w'*CAY*w)  / (w'*noiseCbp*w);
+            PprobeAX{l} = (w'*CAX*w)  / (w'*noiseCbp*w);
+            PprobeBY{l} = (w'*CBY*w)  / (w'*noiseCbp*w);
+            PprobeBX{l} = (w'*CBX*w)  / (w'*noiseCbp*w);
+            PcueA{l} = (w'*CA*w) / (w'*noiseCbp*w);
+            PcueB{l} = (w'*CB*w) / (w'*noiseCbp*w);
         end
         
         PprobeAX  = cell2mat(PprobeAX)';
