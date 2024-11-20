@@ -1,8 +1,8 @@
 function [samples_T,trig_sample,buttonpress] = matchTriggers( filename, BadSamples)
-% Lucrezia Liuzzi, last updated 2021/03/15
+% Lucrezia Liuzzi, last updated 2024/11/01
 %
-% Matches accurate time of projector display to data triggers 
-% 
+% Matches accurate time of projector display to data triggers
+%
 % [samples_T,trig_sample,buttonpress] = matchTriggers(data_name, BadSamples)
 % filename       = name of task-mmi3 dataset (.ds)
 % BadSamples    = time samples to exclude, output of 'preproc_bids'
@@ -81,9 +81,9 @@ if any(strcmp(time.hdr.label,'UADC016'))
     else
         trig_sample.sample = trig_sample.sample + round(0.018*light.fsample); % 18ms average delay
     end
-    
+
 else
-    
+
     trig_sample.sample = trig_sample.sample + round(0.018*time.fsample); % 18ms average delay
 end
 
@@ -93,26 +93,41 @@ buttonpress = [];
 if any(strcmp(time.hdr.label,'UADC006'))
     cfg = [];
     cfg.dataset = filename;
-    cfg.continuous = 'no';
+    cfg.continuous = 'yes';
     cfg.channel = {'UADC005';'UADC006';'UADC007';'UADC008'};
     buttons = ft_preprocessing(cfg);
-    
-    
+
+    maxpeak = max(buttons.trial{1},[],2);
+
     for bb = 1:4
-        ii = 0;
-        buttonpress.(buttons.label{bb}) = zeros(size(trig_sample,1),1);
-        
-        for tt=1:length(buttons.trial)
-            indt = find( diff(buttons.trial{tt}(bb,:),1,2) > 1 );
-            if ~isempty(indt)
-                indt = indt([true, diff(indt) > buttons.fsample*0.2]);
-                sampt = buttons.sampleinfo(tt,1) : buttons.sampleinfo(tt,2);
-                buttonpress.(buttons.label{bb})(ii+(1:nnz(indt))) = sampt(indt);
-                ii = ii + nnz(indt);
-            end
+
+        if maxpeak(bb) > 2
+            [PKS,LOCS] = findpeaks(buttons.trial{1}(bb,:),...
+                'MinPeakDistance',0.01*buttons.fsample,...
+                'MinPeakHeight',maxpeak(bb)*.7, 'MinPeakProminence',maxpeak(bb)*.7) ;
+%             figure; plot(buttons.trial{1}(bb,:));
+%             hold on; plot(LOCS,PKS,'r*')
+%     
+            buttonpress.(buttons.label{bb}) = LOCS;
         end
-        buttonpress.(buttons.label{bb}) = buttonpress.(buttons.label{bb})(1:ii);
     end
+
+    % old definition (edited on Nov 1 2024)
+%     for bb = 1:4
+%         ii = 0;
+%         buttonpress.(buttons.label{bb}) = zeros(size(trig_sample,1),1);
+% 
+%         for tt=1:length(buttons.trial)
+%             indt = find( diff(buttons.trial{tt}(bb,:),1,2) > 1 );
+%             if ~isempty(indt)
+%                 indt = indt([true, diff(indt) > buttons.fsample*0.2]);
+%                 sampt = buttons.sampleinfo(tt,1) : buttons.sampleinfo(tt,2);
+%                 buttonpress.(buttons.label{bb})(ii+(1:nnz(indt))) = sampt(indt);
+%                 ii = ii + nnz(indt);
+%             end
+%         end
+%         buttonpress.(buttons.label{bb}) = buttonpress.(buttons.label{bb})(1:ii);
+%     end
 end
 end
 
