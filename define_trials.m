@@ -1,11 +1,12 @@
-function [datanew,ttdel] = define_trials(samples,data,time,trialed,opts)
-% Lucrezia Liuzzi, last updated 2021/03/15
+function [datanew,ttdel] = define_trials(samples,data,trialed,opts)
+% Lucrezia Liuzzi, last updated 2024/04/05
 % 
 % Defines trials compatible with field_trip
 % [datanew,ttdel] = define_trials(samples,data,time,trialed,opts)
 % samples   = vector with data samples to be new t=0  
 % data      = continuos data in fieldtrip format
-% time      = vector with recording time points corresponding to data samples,
+% time      = vector with recording time points corresponding to data
+% samples, % NO TIME INPUT NEEDED, EDIT ON APRIL 5h 2024
 %             used to identify discontinuities (output of matchTriggers)
 % trialed   = new trial time edges in seconds, e.g. [-2 2]
 % opts      = verbose (true,false)
@@ -21,9 +22,11 @@ datanew.trial = cell(1,l);
 datanew.time = cell(1,l);
 datanew.sampleinfo = repmat([1 n],l,1);
 % datanew.sampleinfo = zeros(l,2);
-
-tjump = find(abs(diff(time))>1);
+time  = data.time{1};
+tjump = find(diff(time)>=(2/data.fsample)); 
+% tjump = find(abs(diff(time))>1); % Old method, using samples from matchTriggers, edit on April 5th 2024
 tjump(end+1) = length(time);
+
 ttdel = [];
 if opts == true
     fprintf('Defining %d trials between %.1fs and %.1fs of samples\n',l,trialed(1),trialed(2))

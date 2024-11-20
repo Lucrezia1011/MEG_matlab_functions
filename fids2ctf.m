@@ -1,5 +1,5 @@
 function mriC = fids2ctf(mri_name,fids_name,plotOpt)
-% Lucrezia Liuzzi, last updated 2021/03/15
+% Lucrezia Liuzzi, last updated 2023/12/07
 % Transform nifti mri into ctf coordinates
 % mriC = fids2ctf(mri_name,fids_name,plotOpt)
 %
@@ -42,15 +42,24 @@ end
 
 % transformation matrix
 T = mri.transform; % = mri.hdr.vox2ras1, shifted by one voxel 
-T(1:2,4) = -T(1:2,4); % adjust transformation matrix from fsl to afni (RAI)
-T(1,1) = -1; T(2,2) = -1;
+if sign(T(1,1)) == 1 && sign(T(2,2)) == 1 && sign(T(3,3)) == 1
+    T(1:2,4) = -T(1:2,4); % adjust transformation matrix from fsl to afni (LPS)
+    T(1,1) = -1; T(2,2) = -1;
+elseif  sign(T(1,3)) == -1 && sign(T(2,1)) == -1 && sign(T(3,2)) == -1
+    T(1,3) = -T(1,3); T(2,1) = -T(2,1);
+    T(1:2,4) = -T(1:2,4); % adjust transformation matrix from RAS to afni (LPS)
+
+else
+    error('Unrecognized MRI transform')
+end
+
 % MRI voxels
 fid_vox = round(inv(T)*fids_inds')';
 
 % Check with plots ---------------------------------------------------
 if plotOpt == 1
     fids_labels = {'Nasion';'Left Ear';'Right Ear'};
-    % figure;
+    figure;
     clf
     for iF = 1:3
         subplot(3,3,(iF-1)*3+1)
