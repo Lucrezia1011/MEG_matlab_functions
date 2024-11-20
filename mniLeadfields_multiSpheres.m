@@ -1,4 +1,4 @@
-function grid = mniLeadfields_multiSpheres(data_name,processing_folder,gridres,mri)
+function grid = mniLeadfields_multiSpheres(data_name,processing_folder,gridres,mri, varargin)
 % Calculate lead fields with fieldtrip with local spheres approximation on 
 % regularly spaced MNI grid warped to individual anatomy 
 % 
@@ -7,12 +7,21 @@ function grid = mniLeadfields_multiSpheres(data_name,processing_folder,gridres,m
 % processing_folder  = folder for data derivatives
 % gridres            = beamformer grid resolution in mm
 % mri                = co-registered mri
+% keepbad            = keep bad channels (for MEG realigned or other channels interpolation)
+
+if isempty(varargin)
+    keepbad = 0;
+else
+    keepbad = varargin{1};
+end
 
 leadfield_name =sprintf( '%s%s/leadfields_multiSpheres_%.0fmm.mat',processing_folder,data_name(1:end-3),gridres);
 if ~exist(leadfield_name,'file')
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% Segment MRI
     sens = ft_read_sens(data_name,'senstype','meg');
+
+
     if ~exist([processing_folder,'/headmodel_multiSpheres.mat'],'file')
         cfg = [];
         cfg.output  = 'brain';
@@ -42,7 +51,7 @@ if ~exist(leadfield_name,'file')
 %         cfg.numvertices = [2400];
 %         bnd    = ft_prepare_mesh(cfg,segmentmri);
         
-                cfg = [];
+        cfg = [];
         cfg.method = 'localspheres';%'singleshell';
         cfg.grad            = sens;
         cfg.numvertices =  6000; % increase number of verticies from default 3000
@@ -68,6 +77,30 @@ if ~exist(leadfield_name,'file')
         save([processing_folder,'/headmodel_multiSpheres.mat'],'vol')
     else
         load([processing_folder,'/headmodel_multiSpheres.mat']);
+        if length(vol.label) < length(sens.label)
+            cfg = [];
+            cfg.output  = 'brain';
+            segmentmri = ft_volumesegment(cfg,mri);
+            
+            segmentmri.anatomy = mri.anatomy;
+            
+            % Plot mri and brain volume for debugging
+            cfg = [];
+            cfg.anaparameter = 'anatomy';
+            cfg.funparameter = 'brain';
+            cfg.location = [0 0 60];
+            ft_sourceplot(cfg, segmentmri)
+
+            cfg = [];
+            cfg.method = 'localspheres';%'singleshell';
+            cfg.grad            = sens;
+            cfg.numvertices =  6000; % increase number of verticies from default 3000
+            %         cfg.radius  = 150;  % 85mm default, 4 spikes at top, using 70mm made it worse
+            cfg.feedback = 'no';
+            vol = ft_prepare_headmodel(cfg, segmentmri);
+            save([processing_folder,'/headmodel_multiSpheres.mat'],'vol')
+        end
+    
     end
     
     
@@ -108,20 +141,21 @@ if ~exist(leadfield_name,'file')
     [grid] = ft_prepare_leadfield(cfg);
     
     %% Eliminate Bad channels    
-   
-    % Get Bad channel names
-    fid = fopen([data_name,'/BadChannels']);
-    BadChannels = textscan(fid,'%s');
-    fclose(fid);
-
-    % Delete Bad channels
-    chanInd = zeros(size(grid.label));
-    for iiC = 1:length(BadChannels{1})
-        chanInd = chanInd | strcmp(grid.label,BadChannels{1}{iiC});
-    end
-    grid.label(find(chanInd)) = [];
-    for ii = find(grid.inside)'
-        grid.leadfield{ii}((find(chanInd)),:) = [];
+    if keepbad == 0
+        % Get Bad channel names
+        fid = fopen([data_name,'/BadChannels']);
+        BadChannels = textscan(fid,'%s');
+        fclose(fid);
+    
+        % Delete Bad channels
+        chanInd = zeros(size(grid.label));
+        for iiC = 1:length(BadChannels{1})
+            chanInd = chanInd | strcmp(grid.label,BadChannels{1}{iiC});
+        end
+        grid.label(find(chanInd)) = [];
+        for ii = find(grid.inside)'
+            grid.leadfield{ii}((find(chanInd)),:) = [];
+        end
     end
     %%
     
