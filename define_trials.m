@@ -2,10 +2,9 @@ function [datanew,ttdel] = define_trials(samples,data,trialed,opts)
 % Lucrezia Liuzzi, last updated 2024/04/05
 % 
 % Defines trials compatible with field_trip
-% [datanew,ttdel] = define_trials(samples,data,time,trialed,opts)
+% [datanew,ttdel] = define_trials(samples,data,trialed,opts)
 % samples   = vector with data samples to be new t=0  
 % data      = continuos data in fieldtrip format
-% time      = vector with recording time points corresponding to data
 % samples, % NO TIME INPUT NEEDED, EDIT ON APRIL 5h 2024
 %             used to identify discontinuities (output of matchTriggers)
 % trialed   = new trial time edges in seconds, e.g. [-2 2]
