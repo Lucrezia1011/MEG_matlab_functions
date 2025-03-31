@@ -8,7 +8,7 @@ function [data,BadSamplesAll] = preproc_bids(data_name,data_path,highpass,lowpas
 % plotopt       = 1 to plot processed MEG data
 %
 % Warning: hard-coded derivates data_path
-addpath('~/fieldtrip-20190812/fieldtrip_private')
+addpath('/home/liuzzil2/fieldtrip-20190812/fieldtrip_private')
 
 % Data header info
 hdr = ft_read_header(data_name);
