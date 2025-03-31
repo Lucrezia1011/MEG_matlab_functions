@@ -39,52 +39,63 @@ trig_sample.sample = zeros(size(event,1),1);
 trig_sample.value = zeros(size(event,1),1);
 trig_sample.type = cell(size(event,1),1);
 ii = 0;
-for tt = 1:length(event)
-    if strcmp(event(tt).type, 'UPPT001' )
-        ii = ii +1;
-        trig_sample.sample(ii) = event(tt).sample ; % Average 24 sample delay
-        trig_sample.value(ii) = event(tt).value;
-        trig_sample.type{ii} = event(tt+1).type;
-    end
-end
-trig_sample.sample = trig_sample.sample(1:ii,:);
-trig_sample.value = trig_sample.value(1:ii,:);
-trig_sample.type = trig_sample.type(1:ii,:);
-% read LIGHT marker (projector display time)
-if any(strcmp(time.hdr.label,'UADC016'))
-    cfg = [];
-    cfg.dataset = filename;
-    cfg.continuous = 'yes';
-    cfg.channel = 'UADC016'; % Time channel!
-    light = ft_preprocessing(cfg);
-    pix_sample = zeros(size(trig_sample.sample,1),1);
-    ii = 0;
-    for tt=1:length(light.trial)
-        indt = find( diff(light.trial{tt}) < -1 );
-        if ~isempty(indt)
-            indt = indt([true, diff(indt) > light.fsample*0.15]);
-            sampt = light.sampleinfo(tt,1) : light.sampleinfo(tt,2);
-            pix_sample(ii+(1:nnz(indt)),1) = sampt(indt);
-            ii = ii + nnz(indt);
+if any(contains({event.type},'UPPT001'))
+    for tt = 1:length(event)
+        if strcmp(event(tt).type, 'UPPT001' )
+            ii = ii +1;
+            trig_sample.sample(ii) = event(tt).sample ; % Average 24 sample delay
+            trig_sample.value(ii) = event(tt).value;
+            trig_sample.type{ii} = event(tt+1).type;
         end
     end
-    pix_sample = pix_sample(1:ii);
-    if ~isempty(pix_sample)
-        for tt = 1:length(pix_sample)
-            d = pix_sample(tt) - trig_sample.sample ;
-            d(d< 0) = 1000;
-            [md, iid]  = min(d);
-            if md < (light.fsample*0.05) % expect < 50ms delay
-                trig_sample.sample(iid) = pix_sample(tt);
+    trig_sample.sample = trig_sample.sample(1:ii,:);
+    trig_sample.value = trig_sample.value(1:ii,:);
+    trig_sample.type = trig_sample.type(1:ii,:);
+else
+    event(contains({event.type},'bad')) = [];
+    trig_sample.sample = [event.sample];
+    trig_sample.value = [event.value];
+    trig_sample.type = {event.type};
+end
+
+if ~any(contains(trig_sample.type,'resp_')) % already adjusted times from bids conversion
+    
+    % read LIGHT marker (projector display time)
+    if any(strcmp(time.hdr.label,'UADC016'))
+        cfg = [];
+        cfg.dataset = filename;
+        cfg.continuous = 'yes';
+        cfg.channel = 'UADC016'; % Time channel!
+        light = ft_preprocessing(cfg);
+        pix_sample = zeros(size(trig_sample.sample,1),1);
+        ii = 0;
+        for tt=1:length(light.trial)
+            indt = find( diff(light.trial{tt}) < -1 );
+            if ~isempty(indt)
+                indt = indt([true, diff(indt) > light.fsample*0.15]);
+                sampt = light.sampleinfo(tt,1) : light.sampleinfo(tt,2);
+                pix_sample(ii+(1:nnz(indt)),1) = sampt(indt);
+                ii = ii + nnz(indt);
             end
         end
+        pix_sample = pix_sample(1:ii);
+        if ~isempty(pix_sample)
+            for tt = 1:length(pix_sample)
+                d = pix_sample(tt) - trig_sample.sample ;
+                d(d< 0) = 1000;
+                [md, iid]  = min(d);
+                if md < (light.fsample*0.05) % expect < 50ms delay
+                    trig_sample.sample(iid) = pix_sample(tt);
+                end
+            end
+        else
+            trig_sample.sample = trig_sample.sample + round(0.018*light.fsample); % 18ms average delay
+        end
+    
     else
-        trig_sample.sample = trig_sample.sample + round(0.018*light.fsample); % 18ms average delay
+    
+        trig_sample.sample = trig_sample.sample + round(0.018*time.fsample); % 18ms average delay
     end
-
-else
-
-    trig_sample.sample = trig_sample.sample + round(0.018*time.fsample); % 18ms average delay
 end
 
 %% Button presses
