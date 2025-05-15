@@ -19,24 +19,6 @@ if ~exist(fids_name,'file')
     error('No fiducials file!')
 end
 
-fileID = fopen(fids_name,'r');
-fids_char = fscanf(fileID,'%c');
-fclose(fileID);
-
-% 4 lines of 66 characters each
-for iF = 1:3
-    fids_inds(iF,1) = str2double(fids_char(66*iF+(18:28))); 
-    fids_inds(iF,2) = str2double(fids_char(66*iF+(30:40)));
-    fids_inds(iF,3) = str2double(fids_char(66*iF+(42:52)));
-end
-
-
-% % Read fiducial coordinates from  mri json file
-% json_name = [datapathsub,'meg/sub-',sdan,'_coordsystem.json'];
-% 
-% ft_info('reading %s\n', json_name);
-% ft_hastoolbox('jsonlab', 1);
-% json = loadjson(json_name);
 
 megdir = dir([datapathsub,'meg/']);
 nfiles = length(megdir)-5;
@@ -57,6 +39,41 @@ for jj = 3:length(megdir)
 end
 fids_meg = fids_meg(:,:,1:n);
 fids_meg_av = mean(fids_meg,3);
+
+
+mri_name = [ datapathsub, '/anat/',mrinamer,'.nii'];
+if ~exist(mri_name,'file')
+    mri_name = [mri_name,'.gz'];
+end
+mri = ft_read_mri(mri_name,'dataformat','nifti');
+
+
+fids_inds = zeros(3,4);
+fids_inds(:,4) = 1;
+
+fileID = fopen(fids_name,'r');
+fids_char = fscanf(fileID,'%c');
+fclose(fileID);
+
+if all(mri.transform(:) == mri.hdr.vox2ras1(:) ) % mri is in RAS coordinates
+% 4 lines of 66 characters each
+    for iF = 1:3
+        fids_inds(iF,1) = -str2double(fids_char(66*iF+(18:28))); % transform to RAS
+        fids_inds(iF,2) = -str2double(fids_char(66*iF+(30:40)));% transform to RAS
+        fids_inds(iF,3) = str2double(fids_char(66*iF+(42:52)));
+    end
+else
+    error('check mri coordinate system!')
+end
+
+   
+
+% % Read fiducial coordinates from  mri json file
+% json_name = [datapathsub,'meg/sub-',sdan,'_coordsystem.json'];
+% 
+% ft_info('reading %s\n', json_name);
+% ft_hastoolbox('jsonlab', 1);
+% json = loadjson(json_name);
 
 % clc
 % % disp('MEG fiducial coordinates:')
@@ -91,30 +108,8 @@ fids_meg_av = mean(fids_meg,3);
 %% transformation matrix
 
 
-mri_name = [ datapathsub, '/anat/',mrinamer,'.nii'];
-if ~exist(mri_name,'file')
-    mri_name = [mri_name,'.gz'];
-end
-mri = ft_read_mri(mri_name,'dataformat','nifti');
-
-T = mri.transform; % = mri.hdr.vox2ras1, shifted by one voxel 
-if sign(T(1,1)) == 1 && sign(T(2,2)) == 1 && sign(T(3,3)) == 1
-    T(1:2,4) = -T(1:2,4); % adjust transformation matrix from fsl to afni (LPS)
-    T(1,1) = -1; T(2,2) = -1;
-elseif  sign(T(1,3)) == -1 && sign(T(2,1)) == -1 && sign(T(3,2)) == -1
-    T(1,3) = -T(1,3); T(2,1) = -T(2,1);
-    T(1:2,4) = -T(1:2,4); % adjust transformation matrix from RAS to afni (LPS)
-
-else
-    error('Unrecognized MRI transform')
-end
-
-fids_inds_flip =  zeros(3,4);
-fids_inds_flip(:,1:3) = fids_inds;
-fids_inds_flip(:,4) = 1;
 % MRI voxels
-fid_vox = round(inv(T)*fids_inds_flip')';
-
+fid_vox = round(inv(mri.transform)*fids_inds')';
 
 cfg = [];
 cfg.method = 'fiducial';
