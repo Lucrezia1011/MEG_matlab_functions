@@ -18,11 +18,15 @@ if exist(fids_name,'file')
     fids_char = fscanf(fileID,'%c');
     fclose(fileID);
     
+    if all(mri.transform(:) == mri.hdr.vox2ras1(:) ) % mri is in RAS coordinates
     % 4 lines of 66 characters each
-    for iF = 1:3
-        fids_inds(iF,1) = str2double(fids_char(66*iF+(18:28))); 
-        fids_inds(iF,2) = str2double(fids_char(66*iF+(30:40)));
-        fids_inds(iF,3) = str2double(fids_char(66*iF+(42:52)));
+        for iF = 1:3
+            fids_inds(iF,1) = -str2double(fids_char(66*iF+(18:28))); % transform to RAS
+            fids_inds(iF,2) = -str2double(fids_char(66*iF+(30:40)));% transform to RAS
+            fids_inds(iF,3) = str2double(fids_char(66*iF+(42:52)));
+        end
+    else
+
     end
 else
     % Read fiducial coordinates from  mri json file
@@ -40,21 +44,21 @@ else
     end
 end
 
-% transformation matrix
-T = mri.transform; % = mri.hdr.vox2ras1, shifted by one voxel 
-if sign(T(1,1)) == 1 && sign(T(2,2)) == 1 && sign(T(3,3)) == 1
-    T(1:2,4) = -T(1:2,4); % adjust transformation matrix from fsl to afni (LPS)
-    T(1,1) = -1; T(2,2) = -1;
-elseif  sign(T(1,3)) == -1 && sign(T(2,1)) == -1 && sign(T(3,2)) == -1
-    T(1,3) = -T(1,3); T(2,1) = -T(2,1);
-    T(1:2,4) = -T(1:2,4); % adjust transformation matrix from RAS to afni (LPS)
-
-else
-    error('Unrecognized MRI transform')
-end
+% % transformation matrix
+% T = mri.transform; % = mri.hdr.vox2ras1, shifted by one voxel 
+% if sign(T(1,1)) == 1 && sign(T(2,2)) == 1 && sign(T(3,3)) == 1
+%     T(1:2,4) = -T(1:2,4); % adjust transformation matrix from fsl to afni (LPS)
+%     T(1,1) = -1; T(2,2) = -1;
+% elseif  sign(T(1,3)) == -1 && sign(T(2,1)) == -1 && sign(T(3,2)) == -1
+%     T(1,3) = -T(1,3); T(2,1) = -T(2,1);
+%     T(1:2,4) = -T(1:2,4); % adjust transformation matrix from RAS to afni (LPS)
+% 
+% else
+%     error('Unrecognized MRI transform')
+% end
 
 % MRI voxels
-fid_vox = round(inv(T)*fids_inds')';
+fid_vox = round(inv(mri.transform)*fids_inds')';
 
 % Check with plots ---------------------------------------------------
 if plotOpt == 1
