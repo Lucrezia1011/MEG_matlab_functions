@@ -28,7 +28,7 @@ tjump(end+1) = length(time);
 
 ttdel = [];
 if opts == true
-    fprintf('Defining %d trials between %.1fs and %.1fs of samples\n',l,trialed(1),trialed(2))
+    fprintf('Defining %d trials between %.2fs and %.2fs of samples\n',l,trialed(1),trialed(2))
 end
 for tt= 1:l
     sampwind = round(samples(tt)+wind_press);
