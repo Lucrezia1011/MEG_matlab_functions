@@ -32,6 +32,9 @@ samples_T = zeros(time.sampleinfo(end),1);
 samples_T(indN) = samples_cut;
 
 event = ft_read_event(filename);
+if size(event,1) == 1
+    event = event';
+end
 % read Trigger channel in MEG data
 
 trig_sample = struct;
@@ -43,19 +46,19 @@ if any(contains({event.type},'UPPT001'))
     for tt = 1:length(event)
         if strcmp(event(tt).type, 'UPPT001' )
             ii = ii +1;
-            trig_sample.sample(ii) = event(tt).sample ; % Average 24 sample delay
-            trig_sample.value(ii) = event(tt).value;
-            trig_sample.type{ii} = event(tt+1).type;
+            trig_sample.sample(ii,1) = event(tt).sample ; % Average 24 sample delay
+            trig_sample.value(ii,1) = event(tt).value;
+            trig_sample.type{ii,1} = event(tt+1).type;
         end
     end
     trig_sample.sample = trig_sample.sample(1:ii,:);
     trig_sample.value = trig_sample.value(1:ii,:);
     trig_sample.type = trig_sample.type(1:ii,:);
 else
-    event(contains({event.type},'bad')) = [];
-    trig_sample.sample = [event.sample];
-    trig_sample.value = [event.value];
-    trig_sample.type = {event.type};
+    event(contains({event.type},'bad')) = []; % with ft2024 dimensions need to be flipped
+    trig_sample.sample = [event.sample]';
+    trig_sample.value = [event.value]';
+    trig_sample.type = {event.type}';
 end
 
 if ~any(contains(trig_sample.type,'resp_')) % already adjusted times from bids conversion
