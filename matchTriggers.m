@@ -10,8 +10,6 @@ function [samples_T,trig_sample,buttonpress] = matchTriggers( filename, BadSampl
 % trig_sample   = output structure with all triggers with original samples
 % buttonpress   = output button presses
 
-
-
 %% Select data
 
 % Outdated way to read light pixel channel
@@ -22,7 +20,6 @@ cfg.dataset = filename;
 cfg.continuous = 'no';
 cfg.channel = 'SCLK01'; % Time channel!
 time = ft_preprocessing(cfg);
-
 
 % Samples transform from continuous recording to pre-processed (no Bad segs)
 samples_cut = 1:(time.sampleinfo(end)-nnz(BadSamples));
