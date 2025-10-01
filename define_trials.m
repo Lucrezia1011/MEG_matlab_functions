@@ -12,7 +12,8 @@ function [datanew,ttdel] = define_trials(samples,data,trialed,opts)
 l = length(samples);
 
 f = data.fsample;
-wind_press = trialed(1)*f+1:trialed(2)*f; 
+% wind_press = trialed(1)*f+1:trialed(2)*f; 
+wind_press = trialed(1)*f:trialed(2)*f;  % changed to fit fieldtrip def
 
 n = length(wind_press);
 datanew = data;
