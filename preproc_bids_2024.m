@@ -1,9 +1,10 @@
-function [data,BadSamplesAll] = preproc_bids_2024(data_name,data_path,highpass,lowpass,icaopt,plotopt)
+function [data,BadSamplesAll] = preproc_bids_2024(data_name,data_path,highpass,lowpass,delmotion,icaopt,plotopt)
 % Pre-processing 
 % [data,BadSamplesAll] = preproc_bids(data_name,highpass,lowpass,icaopt,plotopt)
 % data_name     = dataset name (.ds)
 % highpass      = highpass frequency in Hz
 % lowpass       = lowpass frequency in Hz
+% delmotion     = 1 to delete bad motion segments
 % icaopt        = 1 to use ICA to remove eyeblinks and heartbeat
 % plotopt       = 1 to plot processed MEG data
 %
@@ -34,10 +35,10 @@ cfg.continuous = 'yes';
 cfg.channel = channels;
 cfg.demean = 'yes';
 cfg.detrend = 'no';
-cfg.bpfilter = 'no';
-cfg.bsfilter = 'yes';
-cfg.bsfreq = [58 62; 118 122; 178 182]; % With notch filter 60Hz
-
+if ~isempty(highpass) &&  ~isempty(lowpass) 
+    cfg.bsfilter = 'yes';
+    cfg.bsfreq = [58 62; 118 122]; % With notch filter 60Hz
+end
 data = ft_preprocessing(cfg);
 
 f = data.fsample;
@@ -130,7 +131,11 @@ else
 end
 BadEdges = [1:f, data.sampleinfo(2)+(-f:0)]'; % delete edges after notch filter
 % Combine Bad Trials and Bad Segments
-BadSamplesAll = unique([BadTrials; BadSegs';BadMotion';BadEdges]);
+if delmotion ==1
+    BadSamplesAll = unique([BadTrials; BadSegs';BadMotion';BadEdges]);
+else
+    BadSamplesAll = unique([BadTrials; BadSegs';BadEdges]);
+end
 % Find Bad tail of dataset
 indLast = find(diff(BadSamplesAll)~=1);
 BadSamplesCell = cell(nnz(indLast)+1,1);
@@ -230,12 +235,13 @@ if ~isempty(sensJump)
    
     dataBadSQUID(:,cell2mat(BadSQUID)) =[];
     dataBadSQUID = dataBadSQUID - mean(dataBadSQUID,2);
-    filt_order = 4; % default
-    if highpass <=1 && lowpass <= 30
-        filt_order = 3;
+    if ~isempty(highpass) && ~isempty(lowpass)
+        filt_order = 4; % default
+        if highpass <=1 && lowpass <= 30
+            filt_order = 3;
+        end
+        dataBadSQUID = ft_preproc_bandpassfilter(dataBadSQUID, f, [highpass lowpass], filt_order, [], [], []);
     end
-    dataBadSQUID = ft_preproc_bandpassfilter(dataBadSQUID, f, [highpass lowpass], filt_order, [], [], []);
-
     
     % pad data channels with deleted jumps and substite into data struct
     indN = true(1,data.sampleinfo(2));
@@ -254,23 +260,25 @@ else
 
     % Filter data
     data.trial{1} = data.trial{1} - mean(data.trial{1},2);
-    % Are we introducing filtering artefacts by applying highpass filter on
-    % data with discontinuities (i.e. after deleting bad segments)? Yes
-    % Apply highpass filter after correcting jumps, but before introducing
-    % discontinuities from bad data segments
-    filt_order = 4; % default
-    if highpass<=1 && lowpass <= 30
-        filt_order = 3;
+    if ~isempty(highpass) && ~isempty(lowpass)
+        % Are we introducing filtering artefacts by applying highpass filter on
+        % data with discontinuities (i.e. after deleting bad segments)? Yes
+        % Apply highpass filter after correcting jumps, but before introducing
+        % discontinuities from bad data segments
+        filt_order = 4; % default
+        if highpass<=1 && lowpass <= 30
+            filt_order = 3;
+        end
+        data.trial{1} = ft_preproc_bandpassfilter(data.trial{1}, f, [highpass lowpass], filt_order, [], [], []);
     end
-    data.trial{1} = ft_preproc_bandpassfilter(data.trial{1}, f, [highpass lowpass], filt_order, [], [], []);
-
 end
 % Outlier identification?
 % stdev = std(data.trial{1},[],2);
 % stdevt = abs(data.trial{1}) > stdev*10;
 % [ch,ss] = ind2sub(size(stdevt), find(stdevt));
-figure(1); clf; 
+
 if plotopt == 1
+    figure(1); clf; 
     set(gcf,'Position',[571   231   577   705])
     subplot(311)
     plot(data.trial{1}')
@@ -389,9 +397,7 @@ if icaopt == 1
     if plotopt == 1
         figure(1); subplot(313);plot(data.trial{1}')
         title('MEG data after ICA'); drawnow
-
-    else
-        close all
+   
     end
 end
 
